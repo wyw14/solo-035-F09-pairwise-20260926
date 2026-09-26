@@ -32,6 +32,8 @@ func (server *Server) Router() http.Handler {
 		api.Post("/control", server.control)
 		api.Get("/checkpoint", server.exportCheckpoint)
 		api.Post("/checkpoint", server.restoreCheckpoint)
+		api.Get("/diagnostics", server.diagnosticsGet)
+		api.Post("/diagnostics", server.diagnosticsPost)
 	})
 	router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/operations.html", http.StatusTemporaryRedirect)

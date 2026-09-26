@@ -13,6 +13,18 @@ type State struct {
 	mu      sync.RWMutex
 	events  map[model.EventID]model.LiveEvent
 	history map[model.EventID][]model.EventPhase
+	version uint64
+}
+
+// Version 每次事件身份或阶段变更时递增，供诊断引用其状态版本。
+func (state *State) Version() uint64 {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.version
+}
+
+func (state *State) bumpLocked() {
+	state.version++
 }
 
 func NewState() *State {
@@ -28,6 +40,7 @@ func (state *State) Create(name string, now time.Time) (model.LiveEvent, error) 
 	defer state.mu.Unlock()
 	state.events[event.ID] = event
 	state.history[event.ID] = []model.EventPhase{event.Phase}
+	state.bumpLocked()
 	return event, nil
 }
 
@@ -56,6 +69,7 @@ func (state *State) Transition(id model.EventID, phase model.EventPhase, now tim
 	}
 	state.events[id] = updated
 	state.history[id] = append(state.history[id], phase)
+	state.bumpLocked()
 	return updated, nil
 }
 
@@ -66,6 +80,7 @@ func (state *State) Update(event model.LiveEvent) error {
 		return fmt.Errorf("event %s does not exist", event.ID)
 	}
 	state.events[event.ID] = event
+	state.bumpLocked()
 	return nil
 }
 

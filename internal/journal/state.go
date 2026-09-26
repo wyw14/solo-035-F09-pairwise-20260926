@@ -12,6 +12,18 @@ type State struct {
 	records   []Record
 	revisions map[model.EventID]model.RevisionID
 	fences    map[model.EventID]uint64
+	version   uint64
+}
+
+// Version 在持久化记录应用或日志重置时递增。
+func (state *State) Version() uint64 {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.version
+}
+
+func (state *State) bumpLocked() {
+	state.version++
 }
 
 func NewState() *State {
@@ -28,6 +40,7 @@ func (state *State) Apply(record Record) {
 	if record.Fence > state.fences[record.EventID] {
 		state.fences[record.EventID] = record.Fence
 	}
+	state.bumpLocked()
 }
 
 func (state *State) Records() []Record {
@@ -51,4 +64,5 @@ func (state *State) Reset() {
 	state.records = nil
 	state.revisions = make(map[model.EventID]model.RevisionID)
 	state.fences = make(map[model.EventID]uint64)
+	state.bumpLocked()
 }

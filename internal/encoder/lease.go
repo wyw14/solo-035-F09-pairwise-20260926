@@ -25,6 +25,7 @@ func (state *State) Acquire(owner model.EventID, purpose string, profile string,
 		resource.Profile = profile
 		resource.Lease = lease
 		state.resources[id] = resource
+		state.bumpLocked()
 		return lease, nil
 	}
 	return model.EncoderLease{}, fmt.Errorf("no healthy encoder is available for %s", purpose)
@@ -45,6 +46,7 @@ func (state *State) Release(lease model.EncoderLease, now time.Time) error {
 	resource.Lease.Owner = ""
 	resource.Profile = ""
 	state.resources[lease.EncoderID] = resource
+	state.bumpLocked()
 	return nil
 }
 

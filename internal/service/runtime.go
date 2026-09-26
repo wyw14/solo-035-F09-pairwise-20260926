@@ -49,6 +49,7 @@ type Runtime struct {
 	PlayoutRecovery *playout.Recovery
 	BackupState     *backup.State
 	Backup          *backup.Coordinator
+	diagCache       *diagnosticStore
 }
 
 func NewRuntime(dataDirectory string, clock func() time.Time) (*Runtime, error) {
@@ -97,6 +98,7 @@ func NewRuntime(dataDirectory string, clock func() time.Time) (*Runtime, error) 
 	runtime.PlayoutRecovery = playout.NewRecovery(runtime.PlayoutState, clock)
 	runtime.BackupState = backup.NewState()
 	runtime.Backup = backup.NewCoordinator(runtime.BackupState, runtime.Audio, runtime.EncoderFlow, runtime.PlayoutFlow, clock)
+	runtime.diagCache = &diagnosticStore{}
 	if runtime.Backup == nil {
 		return nil, fmt.Errorf("backup coordinator was not constructed")
 	}

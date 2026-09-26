@@ -22,6 +22,18 @@ type State struct {
 	mu      sync.RWMutex
 	outputs map[model.EventID]Output
 	trace   map[model.EventID][]string
+	version uint64
+}
+
+// Version 在播出输出暂存、发布或停播时递增。
+func (state *State) Version() uint64 {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.version
+}
+
+func (state *State) bumpLocked() {
+	state.version++
 }
 
 func NewState() *State {
@@ -41,6 +53,7 @@ func (state *State) Stage(output Output) error {
 	output.OnAir = false
 	state.outputs[output.EventID] = output
 	state.trace[output.EventID] = append(state.trace[output.EventID], "staged:"+output.Segment)
+	state.bumpLocked()
 	return nil
 }
 
@@ -55,6 +68,7 @@ func (state *State) Publish(eventID model.EventID, revision model.RevisionID, fe
 	output.UpdatedAt = now.UTC()
 	state.outputs[eventID] = output
 	state.trace[eventID] = append(state.trace[eventID], "published:"+output.Segment)
+	state.bumpLocked()
 	return nil
 }
 
@@ -66,6 +80,7 @@ func (state *State) Stop(eventID model.EventID, now time.Time) {
 	output.UpdatedAt = now.UTC()
 	state.outputs[eventID] = output
 	state.trace[eventID] = append(state.trace[eventID], "stopped")
+	state.bumpLocked()
 }
 
 func (state *State) Output(eventID model.EventID) (Output, bool) {

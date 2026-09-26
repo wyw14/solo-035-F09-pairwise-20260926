@@ -18,6 +18,18 @@ type State struct {
 	mu        sync.RWMutex
 	resources map[string]Resource
 	fences    map[string]uint64
+	version   uint64
+}
+
+// Version 在编码器健康度或租约（获取/释放）变更时递增。
+func (state *State) Version() uint64 {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.version
+}
+
+func (state *State) bumpLocked() {
+	state.version++
 }
 
 func NewState(ids ...string) *State {
@@ -48,6 +60,7 @@ func (state *State) SetHealth(id string, healthy bool) bool {
 	}
 	resource.Healthy = healthy
 	state.resources[id] = resource
+	state.bumpLocked()
 	return true
 }
 

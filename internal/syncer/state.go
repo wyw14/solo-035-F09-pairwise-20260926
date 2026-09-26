@@ -22,6 +22,14 @@ type Status struct {
 type State struct {
 	mu       sync.RWMutex
 	statuses map[model.EventID]Status
+	version  uint64
+}
+
+// Version 在帧同步状态写入（重置或观察更新）时递增。
+func (state *State) Version() uint64 {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.version
 }
 
 func NewState() *State {
@@ -31,7 +39,15 @@ func NewState() *State {
 func (state *State) Store(status Status) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
+	previous, existed := state.statuses[status.EventID]
 	state.statuses[status.EventID] = status
+	// 仅在世代、稳定性或原因变化时递增版本，避免连续帧到达不断使诊断失效。
+	if !existed || previous.Source != status.Source ||
+		previous.SourceGeneration != status.SourceGeneration ||
+		previous.Stable != status.Stable ||
+		previous.Reason != status.Reason {
+		state.version++
+	}
 }
 
 func (state *State) Get(eventID model.EventID) (Status, bool) {

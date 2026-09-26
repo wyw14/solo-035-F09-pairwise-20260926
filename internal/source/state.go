@@ -13,6 +13,18 @@ type State struct {
 	signals map[model.SourceID]model.SignalStatus
 	retired map[model.SourceID]uint64
 	frames  map[model.SourceID][]model.Frame
+	version uint64
+}
+
+// Version 在信号注册、世代切换、锁定确认或退役时递增；帧到达不计入。
+func (state *State) Version() uint64 {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.version
+}
+
+func (state *State) bumpLocked() {
+	state.version++
 }
 
 func NewState() *State {
@@ -28,6 +40,7 @@ func (state *State) Register(id model.SourceID, now time.Time) model.SignalStatu
 	defer state.mu.Unlock()
 	status := model.SignalStatus{Source: id, Generation: 1, UpdatedAt: now.UTC()}
 	state.signals[id] = status
+	state.bumpLocked()
 	return status
 }
 
@@ -43,6 +56,7 @@ func (state *State) BeginSwitch(id model.SourceID, now time.Time) model.SignalSt
 	status.UpdatedAt = now.UTC()
 	state.signals[id] = status
 	state.frames[id] = nil
+	state.bumpLocked()
 	return status
 }
 
@@ -57,6 +71,7 @@ func (state *State) AcceptLock(id model.SourceID, command model.CommandID, video
 	status.AudioLocked = audio
 	status.UpdatedAt = now.UTC()
 	state.signals[id] = status
+	state.bumpLocked()
 	return true
 }
 
@@ -87,6 +102,7 @@ func (state *State) Retire(id model.SourceID) {
 	defer state.mu.Unlock()
 	state.retired[id] = state.signals[id].Generation
 	state.frames[id] = nil
+	state.bumpLocked()
 }
 
 func (state *State) Frames(id model.SourceID) []model.Frame {

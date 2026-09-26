@@ -34,6 +34,7 @@ func (state *State) Restore(records []RecoveryRecord, now time.Time) error {
 		record.Event.UpdatedAt = now.UTC()
 		state.events[record.Event.ID] = record.Event
 		state.history[record.Event.ID] = append([]model.EventPhase(nil), record.History...)
+		state.bumpLocked()
 	}
 	return nil
 }
@@ -47,6 +48,7 @@ func (state *State) AdvanceProgram(id model.EventID, now time.Time) (model.LiveE
 	}
 	event = event.NewProgram(now)
 	state.events[id] = event
+	state.bumpLocked()
 	return event, nil
 }
 
@@ -59,5 +61,6 @@ func (state *State) AdvanceSource(id model.EventID, now time.Time) (model.LiveEv
 	}
 	event = event.NewSource(now)
 	state.events[id] = event
+	state.bumpLocked()
 	return event, nil
 }

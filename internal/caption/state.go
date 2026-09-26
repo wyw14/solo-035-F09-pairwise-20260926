@@ -10,6 +10,14 @@ import (
 type State struct {
 	mu       sync.RWMutex
 	statuses map[model.EventID]model.CaptionStatus
+	version  uint64
+}
+
+// Version 在字幕连续性状态写入（成功或失败）时递增。
+func (state *State) Version() uint64 {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.version
 }
 
 func NewState() *State {
@@ -20,6 +28,7 @@ func (state *State) Update(status model.CaptionStatus) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	state.statuses[status.EventID] = status
+	state.version++
 }
 
 func (state *State) Success(eventID model.EventID, revision model.RevisionID, now time.Time) model.CaptionStatus {
